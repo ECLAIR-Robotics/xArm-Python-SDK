@@ -11,6 +11,8 @@ from pcr.gizzmos import AtalantaModule
 from xarm.wrapper import XArmAPI
 from gizzmos import CustomGripper, PressureSensor
 
+print('test commit to show something')
+
 class RunJob():
     SPEED = 50
     ZERO_POS   = [0, 0, 0, 0, 0, 0]
