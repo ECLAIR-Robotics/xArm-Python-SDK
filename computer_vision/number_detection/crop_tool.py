@@ -1,35 +1,17 @@
 import cv2
-import os
-import glob
 import numpy as np
-import timeit
 import threading
-import multiprocessing
 import ctypes
-
-'''
-We are going to implement a prefix-minimum solution to the cropping problem
-
-
-TODO:
-    0) Maybe try making the cropping out of the white first before cropping the dark
-    1) create a single pass prefix-minimum algorithm starting from left to right on the matrix
-
-    RUNTIMES:
-        CURRENT: 
-
-    PROBLEM FILES:
-        - 11.0: still cuts off! Reason why is because at the very bottom of the dial is a number partially showing which causes
-        our bounding box edge to be noncontigious
-
-'''
+import platform
 
 _initialized = False
 
 def init():
     global lib
+
     # Define the argument and return types of the C function
     try:
+        #evaluate platform that's running this file
         lib = ctypes.CDLL('./library/number-detection-pkg.dylib')
         lib.prefix_min.argtypes = [ctypes.POINTER(ctypes.c_uint8), ctypes.POINTER(ctypes.c_uint8), ctypes.c_int, ctypes.c_int, ctypes.c_int]
         lib.prefix_min.restype = None
@@ -37,7 +19,6 @@ def init():
     except OSError as e:
         print(f"Failed to load the shared library: {e}")
         lib = None
-
 if not _initialized:
     init()
     _initialized = True
@@ -106,7 +87,7 @@ def get_skew_angle(contour):
     return angle
 
 # Rotate the image around its center
-def rotateImage(cvImage, angle: float):
+def rotate_image(cvImage, angle: float):
     newImage = cvImage.copy()
     (h, w) = newImage.shape[:2]
     center = (w // 2, h // 2)
@@ -154,15 +135,19 @@ def crop_image(img):
     lwr_bound = 3.5
     high_bound = 4.4
 
+    # area selection
+    area_bound = 1000
+
     copy_img  = img.copy()
     
     contours, _ = cv2.findContours(combined_mask.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     for contour in contours:
         x, y, w, h = cv2.boundingRect(contour)
         area = w*h
+
         ratio = w/h
 
-        if (ratio >= lwr_bound and ratio <= high_bound and area > max_area):
+        if (ratio >= lwr_bound and ratio <= high_bound and area > max_area and area > area_bound):
             max_area = area
             largest_bbox = (x,y,w,h)
             largest_contour = contour
@@ -178,7 +163,7 @@ def crop_image(img):
         # print(f"SKEW: {skew_angle} \t CORRECTION: {skew_angle*-1.0}")
         
         if skew_angle !=  0.0:
-            rotated_img = rotateImage(img,-1.0*skew_angle)
+            rotated_img = rotate_image(img,-1.0*skew_angle)
         else:
             rotated_img = img
         cv2.rectangle(copy_img,(x,y),(x+w,y+h),(255,0,0),2)
@@ -193,11 +178,3 @@ def crop_image(img):
     # cv2.imshow('bounding box',copy_img)
 
     return cropped_img, copy_img
-
-
-def main():
-    print("HELLO")
-        
-
-if __name__ == "__main__":
-    main()
